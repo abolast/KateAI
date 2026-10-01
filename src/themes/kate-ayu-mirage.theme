@@ -1,0 +1,89 @@
+# Kate AI chat skin — Ayu Mirage.
+#
+# Palette: the official Ayu Mirage colours (ayu-theme/ayu-vim "mirage" palette
+# plus the editor/workbench colours from ayu-theme/vscode-ayu ayu-mirage.json).
+# Only the tokens that differ from the built-in default are listed; everything
+# else falls back to the semantic defaults in theme.cpp.
+#
+# The widget layout is the built-in one, so no .qss ships with this skin.
+
+# ---- surfaces ----------------------------------------------------------------
+@bg_base        = #242936    # editor.background
+@bg_surface     = #1f2430    # activityBar.background (composer tray)
+@bg_elevated    = #2b3242    # raised controls (model selector, tool buttons)
+@bg_raised      = #282e3b    # editorWidget.background (cards, bubbles)
+@bg_raised_alt  = #2b3242    # welcome suggestion chips
+@bg_sunken      = #1c212c    # menu.background (disabled controls)
+@bg_input       = #242936    # input.background
+@bg_code        = #1a1f29    # lineHighlight / fenced code block
+@bg_inline_code = #2b3242    # inline code
+@bg_menu        = #1c212c    # menu.background
+
+# ---- text --------------------------------------------------------------------
+@text_strong      = #ffffff
+@text_normal      = #cccac2  # editor.foreground
+@text_assistant   = #cccac2
+@text_muted       = #b8b6ad
+@text_dim         = #a6adba
+@text_soft        = #9aa4b3
+@text_faint       = #707a8c  # editorLineNumber.activeForeground / foreground
+@text_subtle      = #6e7c8f  # editorCodeLens.foreground
+@text_placeholder = #5c6773  # ayu "comment"
+@text_disabled    = #4d5866
+
+# ---- borders -----------------------------------------------------------------
+@border        = #3d4751    # panel borders
+@border_soft   = #171b24    # widget.border
+@border_card   = #343f4c    # selection
+@border_strong = #4a5666
+@border_hover  = #5c6773
+
+# ---- accent ------------------------------------------------------------------
+@accent           = #ffcc66  # focusBorder / editorCursor.foreground
+@accent_hover     = #ffd57f  # bright yellow
+@accent_alt       = #ffcc66
+@accent_alt_hover = #f9c55d  # button.hoverBackground
+@accent_deep      = #e6b455
+@accent_ring      = #ffcc66
+@accent_line      = #5ccfe6  # ayu cyan (brand marks, thinking state)
+@accent_line_hover = #73d0ff
+@accent_text      = #242936  # dark text on the yellow accent
+
+# ---- semantic states ---------------------------------------------------------
+@success        = #87d96c    # gitDecoration.untracked / diff inserted
+@success_bg     = #1f2b21
+@success_border = #87d96c
+@success_hover  = #a6e88f
+@success_deep   = #6fae57
+@success_deep_hover = #87d96c
+@danger         = #f07178    # ayu red
+@danger_hover   = #f27983
+@warn_fg        = #ff6666    # errorForeground
+@warn_info      = #ffcd66    # inputValidation.warningBorder
+@thinking_fg    = #ffcc66
+@thinking_bg    = #3a3325
+@thinking_line  = #5ccfe6
+
+# ---- scrollbars --------------------------------------------------------------
+@scroll_handle       = #3d4751
+@scroll_handle_hover = #5c6773
+
+# ---- tool call cards ---------------------------------------------------------
+@tool_bg_running   = #1c212c
+@tool_bg_done_ok   = #1f2b21
+@tool_bg_done_fail = #2b2121
+@tool_code_bg      = #1a1f29    # editor.lineHighlightBackground
+@tool_code_border  = #343f4c
+@tool_risk_write   = #ffcd66    # ayu mirage yellow
+@tool_meta_bg      = #1f2430
+@tool_meta_border  = #3d4751
+@diff_add_fg       = #87d96c    # ayu mirage green
+@diff_add_bg       = #1f2b21
+@diff_remove_fg    = #f28779    # ayu mirage red
+@diff_remove_bg    = #2b2121
+@diff_hunk_fg      = #6e7c8f
+
+# ---- welcome / banners -------------------------------------------------------
+@brand         = #5ccfe6
+@banner_bg     = #343f4c
+@banner_border = #5ccfe6

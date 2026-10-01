@@ -61,6 +61,13 @@ public:
     void setActivityFrame(int frame);
     void reflowNow();
 
+    /**
+     * Re-reads every colour from the active skin.  The card sets its own style
+     * sheet, so it does not inherit the panel colours and must be told when the
+     * skin changes.
+     */
+    void updateStyle();
+
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -70,7 +77,7 @@ protected:
 
 private:
     void toggleExpand();
-    void updateStyle();
+    void applyStatusStyle();
     void updateTitleText();
     void syncPreviewVisibility();
     void scheduleReflow();

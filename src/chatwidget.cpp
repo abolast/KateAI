@@ -9,6 +9,7 @@
 #include "promptedit.h"
 #include "sessionstore.h"
 #include "settings.h"
+#include "theme.h"
 #include "toolcallwidget.h"
 #include "edittracker.h"
 #include "tools.h"
@@ -34,6 +35,7 @@
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QScrollArea>
+#include <QStyle>
 #include <QTextBrowser>
 #include <QTextDocument>
 #include <QJsonDocument>
@@ -92,40 +94,41 @@ ChatWidget::ChatWidget(QWidget *parent)
     : QWidget(parent)
     , m_userScrolledUp(true)
 {
+    setObjectName(u"ChatWidget"_s);
+
+    // Widget painting comes from the active skin (src/themes).  Child widgets
+    // are addressed by object name or dynamic property instead of inline style
+    // sheets, so a skin only touches CSS.
+    Theme *theme = Theme::instance();
+    if (theme->name().isEmpty()) {
+        theme->loadConfigured();
+    }
+    // The sheet is inherited by the whole widget tree, so the widgets below need
+    // only an object name.  A skin edited on disk restyles the open panel.
+    setStyleSheet(theme->widgetsCss());
+    connect(theme, &Theme::themeChanged, this, &ChatWidget::applySkin);
+
     auto *root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
     // 1. Zed-style Header / Toolbar
     m_toolbar = new QWidget(this);
+    m_toolbar->setObjectName(u"chatToolbar"_s);
     auto *toolbarLayout = new QHBoxLayout(m_toolbar);
     toolbarLayout->setContentsMargins(10, 6, 10, 6);
     toolbarLayout->setSpacing(8);
 
     // Unified Model Selector button
     m_modelSelector = new QPushButton(this);
+    m_modelSelector->setObjectName(u"modelSelector"_s);
     m_modelSelector->setCursor(Qt::PointingHandCursor);
-    m_modelSelector->setStyleSheet(
-        u"QPushButton {"
-        u"  background-color: #262628;"
-        u"  color: #cccccc;"
-        u"  border: 1px solid #3c3c40;"
-        u"  border-radius: 4px;"
-        u"  padding: 4px 10px;"
-        u"  font-size: 12px;"
-        u"  font-weight: 500;"
-        u"  text-align: left;"
-        u"}"
-        u"QPushButton:hover {"
-        u"  background-color: #2e2e32;"
-        u"  border-color: #4a4a50;"
-        u"  color: #ffffff;"
-        u"}"_s);
     toolbarLayout->addWidget(m_modelSelector);
 
     // Reasoning effort chooser button — sits right next to the model label
     // in the chat input area so the user can pick an effort level at a glance.
     m_reasoningEffort = new QPushButton(this);
+    m_reasoningEffort->setObjectName(u"reasoningEffortButton"_s);
     m_reasoningEffort->setFixedSize(28, 28);
     m_reasoningEffort->setCursor(Qt::PointingHandCursor);
     m_reasoningEffort->setToolTip(i18n("Reasoning effort"));
@@ -135,24 +138,15 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     // Thread title label
     m_threadTitle = new QLabel(i18n("New Thread"), this);
-    m_threadTitle->setStyleSheet(u"QLabel { color: #888888; font-size: 12px; font-weight: 500; padding-left: 4px; }"_s);
+    m_threadTitle->setObjectName(u"threadTitle"_s);
     toolbarLayout->addWidget(m_threadTitle);
 
     // Conversation History button
     m_historyButton = new QPushButton(QIcon::fromTheme(u"view-history"_s), QString(), this);
+    m_historyButton->setObjectName(u"toolbarIconButton"_s);
     m_historyButton->setToolTip(i18n("Conversation History"));
     m_historyButton->setFixedSize(26, 26);
     m_historyButton->setCursor(Qt::PointingHandCursor);
-    m_historyButton->setStyleSheet(
-        u"QPushButton {"
-        u"  background: transparent;"
-        u"  border: 1px solid transparent;"
-        u"  border-radius: 4px;"
-        u"}"
-        u"QPushButton:hover {"
-        u"  background-color: #2e2e32;"
-        u"  border-color: #3c3c40;"
-        u"}"_s);
     connect(m_historyButton, &QPushButton::clicked, this, &ChatWidget::showConversationHistory);
     toolbarLayout->addWidget(m_historyButton);
 
@@ -160,36 +154,18 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     // New Chat button
     m_newChat = new QPushButton(QIcon::fromTheme(u"list-add"_s), QString(), this);
+    m_newChat->setObjectName(u"toolbarIconButton"_s);
     m_newChat->setToolTip(i18n("New Thread"));
     m_newChat->setFixedSize(26, 26);
     m_newChat->setCursor(Qt::PointingHandCursor);
-    m_newChat->setStyleSheet(
-        u"QPushButton {"
-        u"  background: transparent;"
-        u"  border: 1px solid transparent;"
-        u"  border-radius: 4px;"
-        u"}"
-        u"QPushButton:hover {"
-        u"  background-color: #2e2e32;"
-        u"  border-color: #3c3c40;"
-        u"}"_s);
     toolbarLayout->addWidget(m_newChat);
 
     // Settings / Configure button
     m_configure = new QPushButton(QIcon::fromTheme(u"settings-configure"_s), QString(), this);
+    m_configure->setObjectName(u"toolbarIconButton"_s);
     m_configure->setToolTip(i18n("Settings"));
     m_configure->setFixedSize(26, 26);
     m_configure->setCursor(Qt::PointingHandCursor);
-    m_configure->setStyleSheet(
-        u"QPushButton {"
-        u"  background: transparent;"
-        u"  border: 1px solid transparent;"
-        u"  border-radius: 4px;"
-        u"}"
-        u"QPushButton:hover {"
-        u"  background-color: #2e2e32;"
-        u"  border-color: #3c3c40;"
-        u"}"_s);
     toolbarLayout->addWidget(m_configure);
 
     root->addWidget(m_toolbar);
@@ -229,33 +205,13 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     // 2. Zed-style Transcript Area (Scroll Area with Cards & Tool Widgets)
     m_scrollArea = new QScrollArea(this);
+    m_scrollArea->setObjectName(u"transcriptScroll"_s);
     m_scrollArea->setWidgetResizable(true);
     m_scrollArea->setFrameShape(QFrame::NoFrame);
     m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_scrollArea->setStyleSheet(
-        u"QScrollArea {"
-        u"  background-color: #181818;"
-        u"  border: none;"
-        u"}"
-        u"QScrollBar:vertical {"
-        u"  background: transparent;"
-        u"  width: 8px;"
-        u"  margin: 0;"
-        u"}"
-        u"QScrollBar::handle:vertical {"
-        u"  background: #333338;"
-        u"  border-radius: 4px;"
-        u"  min-height: 24px;"
-        u"}"
-        u"QScrollBar::handle:vertical:hover {"
-        u"  background: #4a4a52;"
-        u"}"
-        u"QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-        u"  height: 0;"
-        u"}"_s);
 
     m_transcriptContainer = new QWidget(m_scrollArea);
-    m_transcriptContainer->setStyleSheet(u"background-color: #181818;"_s);
+    m_transcriptContainer->setObjectName(u"transcriptContainer"_s);
     m_transcriptLayout = new QVBoxLayout(m_transcriptContainer);
     m_transcriptLayout->setContentsMargins(12, 12, 12, 12);
     m_transcriptLayout->setSpacing(6);
@@ -276,17 +232,7 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     // Thinking indicator (shows when AI is reasoning)
     m_thinkingIndicator = new QLabel(u"💭  Thinking..."_s, indicatorsContainer);
-    m_thinkingIndicator->setStyleSheet(
-        u"QLabel {"
-        u"  color: #3b82f6;"
-        u"  font-size: 11px;"
-        u"  font-style: italic;"
-        u"  padding: 2px 10px;"
-        u"  background-color: #1e3a5f;"
-        u"  border: 1px solid #3b82f6;"
-        u"  border-radius: 10px;"
-        u"  min-width: 108px;"
-        u"}"_s);
+    m_thinkingIndicator->setObjectName(u"thinkingIndicator"_s);
     attachPulseEffect(m_thinkingIndicator);
     m_thinkingIndicator->hide();
     indicatorsLayout->addWidget(m_thinkingIndicator);
@@ -294,17 +240,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     // Working indicator (shows when AI is running tools/reading/editing)
     m_workingLabelBase = u"⚙️  "_s + i18n("Working");
     m_workingIndicator = new QLabel(m_workingLabelBase + u"..."_s, indicatorsContainer);
-    m_workingIndicator->setStyleSheet(
-        u"QLabel {"
-        u"  color: #f59e0b;"
-        u"  font-size: 11px;"
-        u"  font-style: italic;"
-        u"  padding: 2px 10px;"
-        u"  background-color: #3d2e0e;"
-        u"  border: 1px solid #f59e0b;"
-        u"  border-radius: 10px;"
-        u"  min-width: 108px;"
-        u"}"_s);
+    m_workingIndicator->setObjectName(u"workingIndicator"_s);
     attachPulseEffect(m_workingIndicator);
     m_workingIndicator->hide();
     indicatorsLayout->addWidget(m_workingIndicator);
@@ -321,21 +257,8 @@ ChatWidget::ChatWidget(QWidget *parent)
     });
 
     m_scrollToBottomBtn = new QPushButton(u"↓  Jump to latest"_s, m_scrollArea);
+    m_scrollToBottomBtn->setObjectName(u"jumpToLatest"_s);
     m_scrollToBottomBtn->setCursor(Qt::PointingHandCursor);
-    m_scrollToBottomBtn->setStyleSheet(
-        u"QPushButton {"
-        u"  background-color: #2563eb;"
-        u"  color: #ffffff;"
-        u"  border: 1px solid #3b82f6;"
-        u"  border-radius: 14px;"
-        u"  padding: 5px 12px;"
-        u"  font-size: 11px;"
-        u"  font-weight: 600;"
-        u"}"
-        u"QPushButton:hover {"
-        u"  background-color: #1d4ed8;"
-        u"  border-color: #60a5fa;"
-        u"}"_s);
     m_scrollToBottomBtn->hide();
     connect(m_scrollToBottomBtn, &QPushButton::clicked, this, &ChatWidget::forceScrollToBottom);
 
@@ -376,57 +299,41 @@ ChatWidget::ChatWidget(QWidget *parent)
 
     // 4. Composer Area (Zed-style Input Box)
     auto *composerContainer = new QWidget(this);
-    composerContainer->setStyleSheet(
-        u"QWidget {"
-        u"  background-color: #1a1a1a;"
-        u"  border-top: 1px solid #282828;"
-        u"}"_s);
+    composerContainer->setObjectName(u"composerContainer"_s);
     auto *composerLayout = new QVBoxLayout(composerContainer);
     composerLayout->setContentsMargins(12, 8, 12, 8);
     composerLayout->setSpacing(4);
 
     // Info bar for API messages (retries, errors) - shown above composer
     m_infoBar = new QLabel(composerContainer);
+    m_infoBar->setObjectName(u"infoBar"_s);
     m_infoBar->setWordWrap(true);
     m_infoBar->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    m_infoBar->setStyleSheet(u"QLabel { color: #ff8888; font-size: 12px; font-weight: bold; padding: 8px 12px; background: transparent; border: none; }"_s);
     m_infoBar->hide();
     composerLayout->addWidget(m_infoBar);
 
     auto *composerCard = new QWidget(composerContainer);
     composerCard->setObjectName(u"composerCard"_s);
-    composerCard->setStyleSheet(
-        u"QWidget#composerCard {"
-        u"  background-color: #232326;"
-        u"  border: 1px solid #38383e;"
-        u"  border-radius: 8px;"
-        u"}"_s);
     auto *composerCardLayout = new QVBoxLayout(composerCard);
     composerCardLayout->setContentsMargins(10, 8, 10, 6);
     composerCardLayout->setSpacing(4);
 
     m_prompt = new PromptEdit(composerCard);
-    m_prompt->setStyleSheet(
-        u"QPlainTextEdit {"
-        u"  background: transparent;"
-        u"  color: #e4e4e4;"
-        u"  border: none;"
-        u"  padding: 2px;"
-        u"  font-size: 13px;"
-        u"}"_s);
+    m_prompt->setObjectName(u"promptEdit"_s);
     composerCardLayout->addWidget(m_prompt);
 
     auto *bottomRow = new QHBoxLayout;
     bottomRow->setContentsMargins(2, 0, 2, 2);
 
     m_tokenCount = new QLabel(composerCard);
-    m_tokenCount->setStyleSheet(u"QLabel { color: #666; font-size: 11px; }"_s);
+    m_tokenCount->setObjectName(u"tokenCount"_s);
     bottomRow->addWidget(m_tokenCount);
 
     bottomRow->addStretch();
 
     // Thinking mode toggle button
     m_thinking->setParent(composerCard);
+    m_thinking->setObjectName(u"thinkingButton"_s);
     m_thinking->setVisible(true);
     m_thinking->setCheckable(true);
     m_thinking->setFixedSize(28, 28);
@@ -436,6 +343,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     bottomRow->addWidget(m_thinking);
 
     m_send = new QPushButton(composerCard);
+    m_send->setObjectName(u"sendButton"_s);
     m_send->setFixedSize(28, 28);
     m_send->setCursor(Qt::PointingHandCursor);
     updateSendButtonState();
@@ -445,7 +353,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     composerLayout->addWidget(composerCard);
 
     m_status = new QLabel(i18n("Enter to send · Shift+Enter for a new line"), composerContainer);
-    m_status->setStyleSheet(u"QLabel { color: #555555; font-size: 11px; margin-left: 4px; }"_s);
+    m_status->setObjectName(u"composerStatus"_s);
     composerLayout->addWidget(m_status);
 
     root->addWidget(composerContainer);
@@ -708,8 +616,8 @@ ChatWidget::ChatWidget(QWidget *parent)
         setThinkingIndicator(false);
         setWorkingIndicator(false);
         // Auto-save conversation after each completed turn so it always
-        // appears up-to-date in the history menu.  The id is claimed on the
-        // first turn (see submit()); should it still be missing, fall back to
+        // appears up-to-date in the history menu.  The id is allocated on the
+        // first turn (see submit()); if it is somehow still missing, fall back to
         // the id tracked in the config so the turn is never dropped silently.
         const auto sessionData = m_agent.sessionData();
         if (!sessionData.messages.isEmpty()) {
@@ -772,6 +680,93 @@ ChatWidget::ChatWidget(QWidget *parent)
     updateTokenDisplay();
 }
 
+void ChatWidget::applySkin()
+{
+    Theme *theme = Theme::instance();
+
+    // 1. Widget painting.  Qt re-evaluates style rules only after a repolish.
+    setStyleSheet(theme->widgetsCss());
+    const QList<QWidget *> widgets = findChildren<QWidget *>();
+    for (QWidget *widget : widgets) {
+        if (widget) {
+            repolish(widget);
+        }
+    }
+    repolish(this);
+
+    // 2. Rich-text documents (markdown answers, reasoning blocks): restore the
+    //    document sheet, the palette and the rendered content.
+    const QString documentCss = theme->documentCss();
+    const QList<QTextBrowser *> browsers = findChildren<QTextBrowser *>();
+    for (QTextBrowser *browser : browsers) {
+        if (!browser || !browser->document()) {
+            continue;
+        }
+        // Clear only a stale local sheet.
+        if (!browser->styleSheet().isEmpty()) {
+            browser->setStyleSheet(QString());
+        }
+        browser->document()->setDefaultStyleSheet(documentCss);
+        QPalette pal = browser->palette();
+        pal.setColor(QPalette::Text, theme->color(u"text_muted"_s));
+        pal.setColor(QPalette::Base, Qt::transparent);
+        browser->setPalette(pal);
+        refreshTextDocument(browser, browser->property("kateaiMarkdown").toString());
+    }
+
+    // 3. Tool cards set their own style sheet and therefore do not inherit the
+    //    panel colours; without this they fall back to the desktop palette after
+    //    a switch.  Restyled only when the skin changed.
+    if (m_lastSkinnedTheme != theme->name()) {
+        m_lastSkinnedTheme = theme->name();
+        const QList<ToolCallWidget *> cards = findChildren<ToolCallWidget *>();
+        for (ToolCallWidget *card : cards) {
+            if (card) {
+                card->updateStyle();
+            }
+        }
+    }
+
+    // 4. Popup menus hold their own copy of the sheet (a sheet set on a widget
+    //    wins over the inherited one) and must be refreshed explicitly.
+    const QList<QMenu *> menus = findChildren<QMenu *>();
+    for (QMenu *menu : menus) {
+        skinMenu(menu);
+    }
+
+    // 5. State-dependent button looks are property selectors.
+    updateThinkingButtonStyle();
+    updateReasoningEffortButton();
+    updateSendButtonState();
+}
+
+void ChatWidget::repolish(QWidget *widget)
+{
+    if (!widget) {
+        return;
+    }
+    QStyle *style = widget->style();
+    style->unpolish(widget);
+    style->polish(widget);
+    widget->update();
+}
+
+void ChatWidget::refreshTextDocument(QTextBrowser *browser, const QString &markdown)
+{
+    if (!browser || markdown.isEmpty()) {
+        return;
+    }
+    // setDefaultStyleSheet() only affects content assigned afterwards.
+    browser->setMarkdown(markdown);
+}
+
+void ChatWidget::skinMenu(QMenu *menu)
+{
+    if (menu) {
+        menu->setStyleSheet(Theme::instance()->widgetsCss());
+    }
+}
+
 ChatWidget::~ChatWidget()
 {
     stopThinkingPacer();
@@ -829,12 +824,7 @@ void ChatWidget::addUserMessage(const QString &text)
     }
 
     auto *card = new QWidget(m_transcriptContainer);
-    card->setStyleSheet(
-        u"QWidget {"
-        u"  background-color: #232326;"
-        u"  border: 1px solid #333338;"
-        u"  border-radius: 6px;"
-        u"}"_s);
+    card->setObjectName(u"userMessageCard"_s);
     auto *cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(10, 8, 10, 8);
     cardLayout->setSpacing(4);
@@ -843,7 +833,7 @@ void ChatWidget::addUserMessage(const QString &text)
     headerLayout->setContentsMargins(0, 0, 0, 0);
 
     auto *header = new QLabel(i18n("YOU"), card);
-    header->setStyleSheet(u"color: #888888; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; border: none; background: transparent;"_s);
+    header->setObjectName(u"userMessageHeader"_s);
     headerLayout->addWidget(header);
     headerLayout->addStretch();
 
@@ -852,11 +842,11 @@ void ChatWidget::addUserMessage(const QString &text)
     cardLayout->addLayout(headerLayout);
 
     auto *msgLabel = new QLabel(card);
+    msgLabel->setObjectName(u"userMessageBody"_s);
     msgLabel->setWordWrap(true);
     msgLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     msgLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     msgLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
-    msgLabel->setStyleSheet(u"color: #e4e4e4; font-size: 13px; line-height: 1.5; border: none; background: transparent;"_s);
     msgLabel->setText(escape(text).replace(u"\n"_s, u"<br>"_s));
     cardLayout->addWidget(msgLabel);
 
@@ -874,7 +864,7 @@ void ChatWidget::addActivityMessage(const QString &text)
         return;
     }
     auto *pill = new QLabel(escape(text), m_transcriptContainer);
-    pill->setStyleSheet(u"color: #777777; font-size: 11px; font-style: italic; padding: 2px 4px;"_s);
+    pill->setObjectName(u"activityPill"_s);
     appendTranscriptWidget(pill);
     scrollToBottom();
 }
@@ -896,15 +886,15 @@ void ChatWidget::setStreaming(const QString &text)
         headerLayout->setContentsMargins(0, 0, 0, 0);
 
         auto *icon = new QLabel(u"⚡"_s, m_activeAssistantWidget);
-        icon->setStyleSheet(u"color: #3b82f6; font-size: 12px;"_s);
+        icon->setObjectName(u"assistantIcon"_s);
         headerLayout->addWidget(icon);
 
         auto *header = new QLabel(i18n("KATE AI"), m_activeAssistantWidget);
-        header->setStyleSheet(u"color: #3b82f6; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;"_s);
+        header->setObjectName(u"assistantHeader"_s);
         headerLayout->addWidget(header);
 
         m_activeAssistantPulse = new QLabel(u"●"_s, m_activeAssistantWidget);
-        m_activeAssistantPulse->setStyleSheet(u"color: #3b82f6; font-size: 9px; padding-left: 4px;"_s);
+        m_activeAssistantPulse->setObjectName(u"assistantPulse"_s);
         headerLayout->addWidget(m_activeAssistantPulse);
         headerLayout->addStretch();
 
@@ -927,7 +917,7 @@ void ChatWidget::setStreaming(const QString &text)
         m_planLayout->setContentsMargins(4, 2, 4, 2);
         m_planLayout->setSpacing(2);
         auto *planLabel = new QLabel(i18n("Plan"), m_planBlock);
-        planLabel->setStyleSheet(u"color: #888888; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;"_s);
+        planLabel->setObjectName(u"planHeader"_s);
         m_planLayout->addWidget(planLabel);
         layout->addWidget(m_planBlock);
 
@@ -937,16 +927,7 @@ void ChatWidget::setStreaming(const QString &text)
         m_activeAssistantBrowser->setFrameShape(QFrame::NoFrame);
         m_activeAssistantBrowser->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         m_activeAssistantBrowser->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        m_activeAssistantBrowser->setStyleSheet(u"background: transparent; color: #d4d4d4; border: none; padding: 0px;"_s);
-        m_activeAssistantBrowser->document()->setDefaultStyleSheet(
-            u"body { color: #d4d4d4; font-family: sans-serif; font-size: 13px; margin: 0; padding: 0; }"
-            u"pre { background-color: #222225; color: #e4e4e4; padding: 10px 12px; border-radius: 6px; border: 1px solid #333338; font-family: monospace; font-size: 12px; margin: 8px 0; }"
-            u"code { font-family: monospace; font-size: 12px; background-color: #28282d; color: #e4e4e4; padding: 2px 5px; border-radius: 3px; }"
-            u"p { margin-bottom: 8px; line-height: 1.5; }"
-            u"ul, ol { margin-bottom: 8px; padding-left: 20px; }"
-            u"li { margin-bottom: 4px; }"
-            u"blockquote { border-left: 3px solid #3b82f6; padding-left: 10px; color: #888; margin: 8px 0; }"
-            u"a { color: #3b82f6; text-decoration: none; }"_s);
+        m_activeAssistantBrowser->document()->setDefaultStyleSheet(Theme::instance()->documentCss());
 
         layout->addWidget(m_activeAssistantBrowser);
         m_activeAssistantWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
@@ -958,6 +939,7 @@ void ChatWidget::setStreaming(const QString &text)
     if (!m_activeAssistantBrowser) {
         return;
     }
+    m_activeAssistantBrowser->setProperty("kateaiMarkdown", closedMarkdown(m_streamText));
     m_activeAssistantBrowser->setMarkdown(closedMarkdown(m_streamText));
     if (!m_activeAssistantBrowser) {
         return;
@@ -1024,6 +1006,7 @@ void ChatWidget::updateThinkingDisplay()
         return;
     }
     const QString displayed = m_thinkingBuffer.left(m_thinkingPacedLength);
+    m_thinkingBrowser->setProperty("kateaiMarkdown", closedMarkdown(displayed));
     m_thinkingBrowser->setMarkdown(closedMarkdown(displayed));
     if (m_thinkingBlock && !m_thinkingBuffer.isEmpty()) {
         m_thinkingBlock->show();
@@ -1098,27 +1081,22 @@ QWidget *ChatWidget::createThinkingBlock(QWidget *parent, QTextBrowser *&browser
 
     auto *tbHeader = new QHBoxLayout;
     toggle = new QPushButton(u"\u25b4 "_s + i18n("Reasoning"), block);
+    toggle->setObjectName(u"thinkingToggle"_s);
     toggle->setFlat(true);
     toggle->setCursor(Qt::PointingHandCursor);
-    toggle->setStyleSheet(
-        u"QPushButton { color: #888888; font-size: 11px; font-style: italic; border: none; text-align: left; }"
-        u"QPushButton:hover { color: #aaaaaa; }"_s);
     tbHeader->addWidget(toggle);
     tbHeader->addStretch();
     tbLayout->addLayout(tbHeader);
 
     browser = new QTextBrowser(block);
+    browser->setObjectName(u"thinkingBrowser"_s);
     browser->setReadOnly(true);
     browser->setFrameShape(QFrame::NoFrame);
     browser->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     browser->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    browser->setStyleSheet(
-        u"QTextBrowser { background: transparent; color: #c8c8c8; border: none; font-style: italic; font-size: 12px; padding: 4px; }"_s);
-    browser->document()->setDefaultStyleSheet(
-        u"body { color: #c8c8c8; font-style: italic; font-size: 12px; margin: 0; padding: 0; background: transparent; }"
-        u"p { color: #c8c8c8; margin-bottom: 4px; }"_s);
+    browser->document()->setDefaultStyleSheet(Theme::instance()->documentCss());
     QPalette pal = browser->palette();
-    pal.setColor(QPalette::Text, QColor(u"#c8c8c8"_s));
+    pal.setColor(QPalette::Text, Theme::instance()->color(u"text_muted"_s));
     pal.setColor(QPalette::Base, Qt::transparent);
     browser->setPalette(pal);
     tbLayout->addWidget(browser);
@@ -1208,10 +1186,9 @@ void ChatWidget::addPlanChecklist(const QJsonArray &plan)
         const QString desc = o.value(u"description"_s).toString();
         const bool completed = o.value(u"completed"_s).toBool();
         auto *cb = new QCheckBox(desc, m_planBlock);
+        cb->setObjectName(u"planStep"_s);
         cb->setChecked(completed);
         cb->setDisabled(true);
-        cb->setStyleSheet(u"QCheckBox { color: #b0b0b0; font-size: 12px; }"
-                          u"QCheckBox::indicator { width: 14px; height: 14px; }"_s);
         m_planLayout->addWidget(cb);
         m_planSteps.insert(cb, o.value(u"id"_s).toString());
     }
@@ -1235,6 +1212,7 @@ void ChatWidget::freezeStreaming()
         m_streamHeightTimer->stop();
     }
     if (m_activeAssistantBrowser && !m_streamText.isEmpty()) {
+        m_activeAssistantBrowser->setProperty("kateaiMarkdown", m_streamText);
         m_activeAssistantBrowser->setMarkdown(m_streamText);
         if (m_activeAssistantBrowser) {
             const int docH = static_cast<int>(m_activeAssistantBrowser->document()->size().height()) + 16;
@@ -1532,23 +1510,11 @@ void ChatWidget::setCompletionWords(const QStringList &words)
 QPushButton *ChatWidget::createCopyButton(const QString &textToCopy, QWidget *parent)
 {
     auto *btn = new QPushButton(i18n("Copy"), parent);
+    btn->setObjectName(u"copyButton"_s);
+    btn->setProperty("copied", false);
     btn->setProperty("copyText", textToCopy);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setFixedHeight(22);
-    btn->setStyleSheet(
-        u"QPushButton {"
-        u"  color: #888888;"
-        u"  background-color: transparent;"
-        u"  border: 1px solid #38383e;"
-        u"  border-radius: 4px;"
-        u"  padding: 2px 8px;"
-        u"  font-size: 11px;"
-        u"}"
-        u"QPushButton:hover {"
-        u"  color: #ffffff;"
-        u"  background-color: #2a2a2e;"
-        u"  border-color: #4a4a52;"
-        u"}"_s);
 
     connect(btn, &QPushButton::clicked, this, [btn, this]() {
         QString text = btn->property("copyText").toString();
@@ -1557,32 +1523,19 @@ QPushButton *ChatWidget::createCopyButton(const QString &textToCopy, QWidget *pa
         }
         QGuiApplication::clipboard()->setText(text);
         btn->setText(i18n("✓ Copied"));
-        btn->setStyleSheet(
-            u"QPushButton {"
-            u"  color: #22c55e;"
-            u"  background-color: #1a3320;"
-            u"  border: 1px solid #22c55e;"
-            u"  border-radius: 4px;"
-            u"  padding: 2px 8px;"
-            u"  font-size: 11px;"
-            u"}"_s);
+        // The "copied" look is a property selector in the skin, so the button
+        // needs a repolish for the new state to take effect.
+        btn->setProperty("copied", true);
+        repolish(btn);
         QTimer::singleShot(2000, btn, [btnWeak = QPointer<QPushButton>(btn)]() {
             if (btnWeak) {
                 btnWeak->setText(i18n("Copy"));
-                btnWeak->setStyleSheet(
-                    u"QPushButton {"
-                    u"  color: #888888;"
-                    u"  background-color: transparent;"
-                    u"  border: 1px solid #38383e;"
-                    u"  border-radius: 4px;"
-                    u"  padding: 2px 8px;"
-                    u"  font-size: 11px;"
-                    u"}"
-                    u"QPushButton:hover {"
-                    u"  color: #ffffff;"
-                    u"  background-color: #2a2a2e;"
-                    u"  border-color: #4a4a52;"
-                    u"}"_s);
+                btnWeak->setProperty("copied", false);
+                if (auto *widget = btnWeak.data()) {
+                    widget->style()->unpolish(widget);
+                    widget->style()->polish(widget);
+                    widget->update();
+                }
             }
         });
     });
@@ -1599,18 +1552,18 @@ QWidget *ChatWidget::createWelcomeWidget()
     wLayout->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
 
     auto *wIcon = new QLabel(u"⚡"_s, welcome);
+    wIcon->setObjectName(u"welcomeIcon"_s);
     wIcon->setAlignment(Qt::AlignCenter);
-    wIcon->setStyleSheet(u"font-size: 24px; color: #3b82f6;"_s);
     wLayout->addWidget(wIcon);
 
     auto *wTitle = new QLabel(i18n("Kate AI Agent"), welcome);
+    wTitle->setObjectName(u"welcomeTitle"_s);
     wTitle->setAlignment(Qt::AlignCenter);
-    wTitle->setStyleSheet(u"color: #e4e4e4; font-size: 14px; font-weight: bold;"_s);
     wLayout->addWidget(wTitle);
 
     auto *wSub = new QLabel(i18n("Ask questions, edit code, and explore your workspace."), welcome);
+    wSub->setObjectName(u"welcomeSubtitle"_s);
     wSub->setAlignment(Qt::AlignCenter);
-    wSub->setStyleSheet(u"color: #777777; font-size: 11px; margin-bottom: 8px;"_s);
     wLayout->addWidget(wSub);
 
     // Starter suggestion chips
@@ -1629,22 +1582,8 @@ QWidget *ChatWidget::createWelcomeWidget()
 
     for (const auto &s : suggestions) {
         auto *btn = new QPushButton(u"%1  %2"_s.arg(s.icon, s.title), welcome);
+        btn->setObjectName(u"welcomeChip"_s);
         btn->setCursor(Qt::PointingHandCursor);
-        btn->setStyleSheet(
-            u"QPushButton {"
-            u"  background-color: #202024;"
-            u"  color: #cccccc;"
-            u"  border: 1px solid #333338;"
-            u"  border-radius: 6px;"
-            u"  padding: 6px 10px;"
-            u"  font-size: 11px;"
-            u"  text-align: left;"
-            u"}"
-            u"QPushButton:hover {"
-            u"  background-color: #2a2a30;"
-            u"  border-color: #4a4a52;"
-            u"  color: #ffffff;"
-            u"}"_s);
         connect(btn, &QPushButton::clicked, this, [this, prompt = s.prompt]() {
             ask(prompt);
         });
@@ -1683,11 +1622,12 @@ void ChatWidget::showInfoMessage(const QString &message, bool isError)
         return;
     }
     if (isError) {
-        m_infoBar->setStyleSheet(u"QLabel { color: #ff8888; font-size: 12px; font-weight: bold; padding: 8px 12px; background: transparent; border: none; }"_s);
+        m_infoBar->setProperty("severity", u"error"_s);
     } else {
         // Bright brown/orange for retries
-        m_infoBar->setStyleSheet(u"QLabel { color: #ffaa00; font-size: 12px; font-weight: bold; padding: 8px 12px; background: transparent; border: none; }"_s);
+        m_infoBar->setProperty("severity", u"warning"_s);
     }
+    repolish(m_infoBar);
     m_infoBar->setText(message);
     m_infoBar->show();
 
@@ -1859,36 +1799,10 @@ void ChatWidget::updateTokenDisplay()
 void ChatWidget::updateThinkingButtonStyle()
 {
     if (!m_thinking) return;
-    if (m_thinking->isChecked()) {
-        m_thinking->setText(u"💡"_s);
-        m_thinking->setStyleSheet(
-            u"QPushButton {"
-            u"  color: #ffffff;"
-            u"  background-color: #1e7e34;"
-            u"  border: 1px solid #2d9f42;"
-            u"  border-radius: 4px;"
-            u"  font-size: 14px;"
-            u"}"
-            u"QPushButton:hover {"
-            u"  background-color: #2d9f42;"
-            u"  border-color: #3ecf52;"
-            u"}"_s);
-    } else {
-        m_thinking->setText(u"💭"_s);
-        m_thinking->setStyleSheet(
-            u"QPushButton {"
-            u"  color: #888888;"
-            u"  background-color: #2e2e32;"
-            u"  border: 1px solid #3c3c40;"
-            u"  border-radius: 4px;"
-            u"  font-size: 14px;"
-            u"}"
-            u"QPushButton:hover {"
-            u"  background-color: #3a3a3e;"
-            u"  border-color: #4a4a50;"
-            u"  color: #aaaaaa;"
-            u"}"_s);
-    }
+    m_thinking->setText(m_thinking->isChecked() ? u"\U0001f4a1"_s : u"\U0001f4ad"_s);
+    // The skin paints the active state through the [thinking="true"] selector.
+    m_thinking->setProperty("thinking", m_thinking->isChecked());
+    repolish(m_thinking);
 }
 
 void ChatWidget::updateReasoningEffortButton()
@@ -1923,52 +1837,12 @@ void ChatWidget::updateReasoningEffortButton()
     m_reasoningEffort->setToolTip(toolTip);
 
     // Always visible next to the model label. Greyed out when the current
-    // model does not expose a reasoning_effort parameter.
-    if (!supports) {
-        m_reasoningEffort->setStyleSheet(
-            u"QPushButton {"
-            u"  color: #666666;"
-            u"  background-color: #1f1f22;"
-            u"  border: 1px solid #333338;"
-            u"  border-radius: 4px;"
-            u"  font-size: 12px;"
-            u"  font-weight: bold;"
-            u"}"
-            u"QPushButton:hover {"
-            u"  background-color: #2a2a2e;"
-            u"  border-color: #3c3c40;"
-            u"  color: #888888;"
-            u"}"_s);
-    } else if (m_settings.reasoningEffort.isEmpty()) {
-        m_reasoningEffort->setStyleSheet(
-            u"QPushButton {"
-            u"  color: #888888;"
-            u"  background-color: #2e2e32;"
-            u"  border: 1px solid #3c3c40;"
-            u"  border-radius: 4px;"
-            u"  font-size: 12px;"
-            u"  font-weight: bold;"
-            u"}"
-            u"QPushButton:hover {"
-            u"  background-color: #3a3a3e;"
-            u"  border-color: #4a4a50;"
-            u"  color: #cccccc;"
-            u"}"_s);
-    } else {
-        m_reasoningEffort->setStyleSheet(
-            u"QPushButton {"
-            u"  color: #ffffff;"
-            u"  background-color: #007acc;"
-            u"  border: 1px solid #0099ff;"
-            u"  border-radius: 4px;"
-            u"  font-size: 12px;"
-            u"  font-weight: bold;"
-            u"}"
-            u"QPushButton:hover {"
-            u"  background-color: #0099ff;"
-            u"  border-color: #33bbff;"
-            u"}"_s);
-    }
+    // model does not expose a reasoning_effort parameter.  The three visual
+    // states live in the skin as [effort="..."] selectors.
+    const char *state = !supports ? "unsupported"
+        : (m_settings.reasoningEffort.isEmpty() ? "auto" : "set");
+    m_reasoningEffort->setProperty("effort", QString::fromLatin1(state));
+    repolish(m_reasoningEffort);
 }
 
 bool ChatWidget::modelSupportsReasoningEffort() const
@@ -2015,27 +1889,7 @@ void ChatWidget::showReasoningEffortMenu()
     }
 
     QMenu menu(this);
-    menu.setStyleSheet(
-        u"QMenu {"
-        u"  background-color: #252528;"
-        u"  color: #cccccc;"
-        u"  border: 1px solid #3c3c40;"
-        u"  border-radius: 6px;"
-        u"  padding: 4px;"
-        u"}"
-        u"QMenu::item {"
-        u"  padding: 6px 18px 6px 12px;"
-        u"  border-radius: 4px;"
-        u"}"
-        u"QMenu::item:selected {"
-        u"  background-color: #007acc;"
-        u"  color: #ffffff;"
-        u"}"
-        u"QMenu::separator {"
-        u"  height: 1px;"
-        u"  background-color: #38383e;"
-        u"  margin: 4px 0;"
-        u"}"_s);
+    skinMenu(&menu);
 
     auto *reasoningGroup = new QActionGroup(this);
     const QStringList reasoningLevels = {QString(), QStringLiteral("minimal"), QStringLiteral("low"), QStringLiteral("medium"), QStringLiteral("high")};
@@ -2071,44 +1925,13 @@ void ChatWidget::showModelMenu()
     m_modelFilter.clear();
 
     m_modelMenu = new QMenu(this);
-    m_modelMenu->setStyleSheet(
-        u"QMenu {"
-        u"  background-color: #252528;"
-        u"  color: #cccccc;"
-        u"  border: 1px solid #3c3c40;"
-        u"  border-radius: 6px;"
-        u"  padding: 4px;"
-        u"}"
-        u"QMenu::item {"
-        u"  padding: 6px 18px 6px 12px;"
-        u"  border-radius: 4px;"
-        u"}"
-        u"QMenu::item:selected {"
-        u"  background-color: #007acc;"
-        u"  color: #ffffff;"
-        u"}"
-        u"QMenu::separator {"
-        u"  height: 1px;"
-        u"  background-color: #38383e;"
-        u"  margin: 4px 0;"
-        u"}"_s);
+    skinMenu(m_modelMenu);
 
     auto *filterEdit = new QLineEdit(m_modelMenu);
     filterEdit->setPlaceholderText(i18n("Filter models..."));
     filterEdit->setClearButtonEnabled(true);
     filterEdit->setMinimumWidth(240);
-    filterEdit->setStyleSheet(
-        u"QLineEdit {"
-        u"  background-color: #1a1a1a;"
-        u"  color: #e4e4e4;"
-        u"  border: 1px solid #38383e;"
-        u"  border-radius: 4px;"
-        u"  padding: 6px 10px;"
-        u"  font-size: 12px;"
-        u"}"
-        u"QLineEdit:focus {"
-        u"  border-color: #007acc;"
-        u"}"_s);
+    filterEdit->setObjectName(u"modelFilter"_s);
     connect(filterEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
         m_modelFilter = text;
         applyModelMenuFilter();
@@ -2326,27 +2149,7 @@ void ChatWidget::selectModel(Provider provider, const QString &model)
 void ChatWidget::showSettingsMenu()
 {
     QMenu menu(this);
-    menu.setStyleSheet(
-        u"QMenu {"
-        u"  background-color: #252528;"
-        u"  color: #cccccc;"
-        u"  border: 1px solid #3c3c40;"
-        u"  border-radius: 6px;"
-        u"  padding: 4px;"
-        u"}"
-        u"QMenu::item {"
-        u"  padding: 6px 18px 6px 12px;"
-        u"  border-radius: 4px;"
-        u"}"
-        u"QMenu::item:selected {"
-        u"  background-color: #007acc;"
-        u"  color: #ffffff;"
-        u"}"
-        u"QMenu::separator {"
-        u"  height: 1px;"
-        u"  background-color: #38383e;"
-        u"  margin: 4px 0;"
-        u"}"_s);
+    skinMenu(&menu);
 
     // Permission Mode
     auto *permMenu = menu.addMenu(i18n("Permission Mode"));
@@ -2416,10 +2219,11 @@ void ChatWidget::submit()
     }
     forceScrollToBottom();
 
-    // Claim a conversation id before the turn runs: turnFinished() persists
-    // under this id, and without it the first conversation of a session stayed
-    // in memory only - invisible in the history menu and lost on "New Thread".
-    // Allocated lazily, so an empty chat still creates no ghost entry.
+    // Claim a conversation id before the turn runs.  turnFinished() persists
+    // under this id, and without it the first conversation of a session used to
+    // stay in memory only - invisible in the history menu and lost on "New
+    // Thread".  The id is allocated lazily so an empty chat still creates no
+    // ghost entry in the history list.
     if (m_currentConversationId.isEmpty()) {
         m_currentConversationId = SessionStore::createNewConversation();
     }
@@ -2436,42 +2240,12 @@ void ChatWidget::updateSendButtonState()
 
     m_send->setEnabled(canClick);
 
-    if (busy) {
-        m_send->setText(u"■"_s);
-        m_send->setStyleSheet(
-            u"QPushButton {"
-            u"  color: #ffffff;"
-            u"  background-color: #e74c3c;"
-            u"  font-size: 13px;"
-            u"  border: none;"
-            u"  border-radius: 4px;"
-            u"}"
-            u"QPushButton:hover { background-color: #ff6b5a; }"_s);
-        m_send->setToolTip(i18n("Stop response"));
-    } else {
-        m_send->setText(u"▲"_s);
-        if (canClick) {
-            m_send->setStyleSheet(
-                u"QPushButton {"
-                u"  color: #ffffff;"
-                u"  background-color: #007acc;"
-                u"  font-size: 13px;"
-                u"  border: none;"
-                u"  border-radius: 4px;"
-                u"}"
-                u"QPushButton:hover { background-color: #0062a3; }"_s);
-        } else {
-            m_send->setStyleSheet(
-                u"QPushButton {"
-                u"  color: #555555;"
-                u"  background-color: #2e2e32;"
-                u"  font-size: 13px;"
-                u"  border: 1px solid #38383e;"
-                u"  border-radius: 4px;"
-                u"}"_s);
-        }
-        m_send->setToolTip(i18n("Send message"));
-    }
+    // The skin distinguishes the send and stop looks via the mode property and
+    // handles the greyed-out state through QPushButton:disabled.
+    m_send->setProperty("mode", busy ? u"stop"_s : u"send"_s);
+    m_send->setText(busy ? u"\u25a0"_s : u"\u25b2"_s);
+    m_send->setToolTip(busy ? i18n("Stop response") : i18n("Send message"));
+    repolish(m_send);
 }
 
 void ChatWidget::focusPrompt()
@@ -2691,34 +2465,14 @@ void ChatWidget::rebuildTranscript()
         indicatorsLayout->addStretch();
 
         m_thinkingIndicator = new QLabel(u"💭  Thinking..."_s, indicatorsContainer);
-        m_thinkingIndicator->setStyleSheet(
-            u"QLabel {"
-            u"  color: #3b82f6;"
-            u"  font-size: 11px;"
-            u"  font-style: italic;"
-            u"  padding: 2px 10px;"
-            u"  background-color: #1e3a5f;"
-            u"  border: 1px solid #3b82f6;"
-            u"  border-radius: 10px;"
-            u"  min-width: 108px;"
-            u"}"_s);
+        m_thinkingIndicator->setObjectName(u"thinkingIndicator"_s);
         attachPulseEffect(m_thinkingIndicator);
         m_thinkingIndicator->hide();
         indicatorsLayout->addWidget(m_thinkingIndicator);
 
         m_workingLabelBase = u"⚙️  "_s + i18n("Working");
         m_workingIndicator = new QLabel(m_workingLabelBase + u"..."_s, indicatorsContainer);
-        m_workingIndicator->setStyleSheet(
-            u"QLabel {"
-            u"  color: #f59e0b;"
-            u"  font-size: 11px;"
-            u"  font-style: italic;"
-            u"  padding: 2px 10px;"
-            u"  background-color: #3d2e0e;"
-            u"  border: 1px solid #f59e0b;"
-            u"  border-radius: 10px;"
-            u"  min-width: 108px;"
-            u"}"_s);
+        m_workingIndicator->setObjectName(u"workingIndicator"_s);
         attachPulseEffect(m_workingIndicator);
         m_workingIndicator->hide();
         indicatorsLayout->addWidget(m_workingIndicator);
@@ -2764,11 +2518,11 @@ void ChatWidget::rebuildTranscript()
                     headerLayout->setContentsMargins(0, 0, 0, 0);
 
                     auto *icon = new QLabel(u"⚡"_s, assistantWidget);
-                    icon->setStyleSheet(u"color: #3b82f6; font-size: 12px;"_s);
+                    icon->setObjectName(u"assistantIcon"_s);
                     headerLayout->addWidget(icon);
 
                     auto *label = new QLabel(i18n("KATE AI"), assistantWidget);
-                    label->setStyleSheet(u"color: #3b82f6; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;"_s);
+                    label->setObjectName(u"assistantHeader"_s);
                     headerLayout->addWidget(label);
                     headerLayout->addStretch();
 
@@ -2781,6 +2535,7 @@ void ChatWidget::rebuildTranscript()
                         QPushButton *thinkingToggle = nullptr;
                         auto *thinkingBlock = createThinkingBlock(assistantWidget, thinkingBrowser, thinkingToggle, false);
                         if (thinkingBrowser) {
+                            thinkingBrowser->setProperty("kateaiMarkdown", closedMarkdown(msg.thinking));
                             thinkingBrowser->setMarkdown(closedMarkdown(msg.thinking));
                         }
                         thinkingBlock->show();
@@ -2799,16 +2554,8 @@ void ChatWidget::rebuildTranscript()
                     browser->setFrameShape(QFrame::NoFrame);
                     browser->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
                     browser->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-                    browser->setStyleSheet(u"background: transparent; color: #d4d4d4; border: none; padding: 0px;"_s);
-                    browser->document()->setDefaultStyleSheet(
-                        u"body { color: #d4d4d4; font-family: sans-serif; font-size: 13px; margin: 0; padding: 0; }"
-                        u"pre { background-color: #222225; color: #e4e4e4; padding: 10px 12px; border-radius: 6px; border: 1px solid #333338; font-family: monospace; font-size: 12px; margin: 8px 0; }"
-                        u"code { font-family: monospace; font-size: 12px; background-color: #28282d; color: #e4e4e4; padding: 2px 5px; border-radius: 3px; }"
-                        u"p { margin-bottom: 8px; line-height: 1.5; }"
-                        u"ul, ol { margin-bottom: 8px; padding-left: 20px; }"
-                        u"li { margin-bottom: 4px; }"
-                        u"blockquote { border-left: 3px solid #3b82f6; padding-left: 10px; color: #888; margin: 8px 0; }"
-                        u"a { color: #3b82f6; text-decoration: none; }"_s);
+                    browser->setProperty("kateaiMarkdown", msg.content);
+                    browser->document()->setDefaultStyleSheet(Theme::instance()->documentCss());
                     if (hasVisibleText) {
                         browser->setMarkdown(msg.content);
                     } else {
@@ -2986,7 +2733,7 @@ void ChatWidget::restoreCurrentTurn(const SessionStore::SessionData &sessionData
             m_planLayout->setContentsMargins(4, 2, 4, 2);
             m_planLayout->setSpacing(2);
             auto *planLabel = new QLabel(i18n("Plan"), m_planBlock);
-            planLabel->setStyleSheet(u"color: #888888; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;"_s);
+            planLabel->setObjectName(u"planHeader"_s);
             m_planLayout->addWidget(planLabel);
             appendTranscriptWidget(m_planBlock);
         }
@@ -3147,10 +2894,10 @@ void ChatWidget::newChat()
         }
     }
 
-    // Reset the in-memory turn only.  AgentLoop::clearSession() calls
+    // Reset the in-memory turn only.  AgentLoop::clearSession() would call
     // SessionStore::clear(), which deletes the *active* conversation from disk -
-    // destroying the record saved just above and making "New Thread" silently
-    // wipe the previous conversation.
+    // destroying the very record that was just saved above and making "New
+    // Thread" silently wipe the previous conversation.
     m_agent.resetConversation();
     m_permissionBar->hideBar();
     if (m_infoBar) {

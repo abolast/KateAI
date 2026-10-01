@@ -77,6 +77,9 @@ private:
     QSpinBox *m_maxExpandedToolCards = nullptr;
     QPlainTextEdit *m_deny = nullptr;
 
+    // Appearance
+    QComboBox *m_theme = nullptr;
+
     // Agent
     QSpinBox *m_maxIter = nullptr;
     QSpinBox *m_maxModelRequests = nullptr;

@@ -1,0 +1,36 @@
+/*
+ * Kate AI chat skin — tool card diff / output pane.
+ *
+ * Applied with QTextDocument::setDefaultStyleSheet() to the read-only views
+ * inside a tool card (proposed-edit diff, raw tool output).  Colours are the
+ * same tokens as the rest of the skin.
+ */
+
+body {
+    color: @text_dim;
+    font-family: monospace;
+    font-size: 11px;
+    margin: 0;
+    padding: 0;
+}
+pre {
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 11px;
+}
+p {
+    margin: 0;
+    white-space: pre-wrap;
+}
+.removed {
+    color: @diff_remove_fg;
+    background-color: @diff_remove_bg;
+}
+.added {
+    color: @diff_add_fg;
+    background-color: @diff_add_bg;
+}
+.hunk {
+    color: @diff_hunk_fg;
+}

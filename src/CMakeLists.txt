@@ -29,10 +29,13 @@ target_link_libraries(kateai_core
 
 kcoreaddons_add_plugin(kateai INSTALL_NAMESPACE "kf6/ktexteditor")
 target_compile_definitions(kateai PRIVATE TRANSLATION_DOMAIN="kateai")
+set_target_properties(kateai PROPERTIES AUTOMOC ON)
 target_sources(kateai PRIVATE
     plugin.cpp
     pluginview.cpp
     configpage.cpp
+    theme.cpp
+    theme.h
     chatwidget.cpp
     toolcallwidget.cpp
     promptedit.cpp
@@ -42,6 +45,7 @@ target_sources(kateai PRIVATE
 )
 target_link_libraries(kateai PRIVATE
     kateai_core
+    KF6::ConfigCore
     KF6::I18n
     KF6::TextEditor
     KF6::XmlGui

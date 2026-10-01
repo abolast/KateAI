@@ -48,6 +48,7 @@ Settings SettingsStore::load()
     s.loadProjectInstructions = g.readEntry(u"LoadProjectInstructions"_s, true);
     s.thinkingMode = g.readEntry(u"ThinkingMode"_s, true);
     s.extraSystemPrompt = g.readEntry(u"ExtraSystemPrompt"_s, QString());
+    s.themeName = g.readEntry(u"ThemeName"_s, kDefaultThemeName);
     s.extraDenyGlobs = g.readEntry(u"ExtraDenyGlobs"_s, QStringList());
     s.contextCompressionLevel = g.readEntry(u"ContextCompressionLevel"_s, 1);
     s.maxGraphNodes = g.readEntry(u"MaxGraphNodes"_s, 50);
@@ -121,6 +122,7 @@ void SettingsStore::save(const Settings &settings)
     g.writeEntry(u"LoadProjectInstructions"_s, settings.loadProjectInstructions);
     g.writeEntry(u"ThinkingMode"_s, settings.thinkingMode);
     g.writeEntry(u"ExtraSystemPrompt"_s, settings.extraSystemPrompt);
+    g.writeEntry(u"ThemeName"_s, settings.themeName);
     g.writeEntry(u"ExtraDenyGlobs"_s, settings.extraDenyGlobs);
     
     // Save context compression settings

@@ -80,6 +80,13 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
+    // Applies the active skin to this widget tree and its rich-text documents.
+    // Connected to Theme::themeChanged.
+    void applySkin();
+    void repolish(QWidget *widget);
+    // Re-renders markdown after the document sheet was swapped.
+    void refreshTextDocument(QTextBrowser *browser, const QString &markdown);
+
     void addUserMessage(const QString &text);
     void addActivityMessage(const QString &text);
     void setStreaming(const QString &text);
@@ -118,6 +125,8 @@ private:
     void updateTokenDisplay();
     void updateThinkingButtonStyle();
     void updateReasoningEffortButton();
+    // Applies the widget sheet to a transient popup menu.
+    void skinMenu(QMenu *menu);
     bool modelSupportsReasoningEffort() const;
     void showReasoningEffortMenu();
     void setThinkingIndicator(bool show);
@@ -234,6 +243,9 @@ private:
     QMenu *m_historyMenu = nullptr;
     QString m_currentConversationId;
     bool m_loadingConversation = false;
+
+    // Skin name currently applied to the tool cards.
+    QString m_lastSkinnedTheme;
 };
 
 } // namespace KateAi

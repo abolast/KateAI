@@ -78,6 +78,7 @@ add_subdirectory(src)
 if(BUILD_TESTING)
     find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Test)
     add_subdirectory(tests)
+    add_subdirectory(tools/themecheck)
 endif()
 
 if(NOT KDE_INSTALL_FULL_QTPLUGINDIR)

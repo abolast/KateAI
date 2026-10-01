@@ -3,4 +3,11 @@
   <qresource prefix="/kxmlgui5/kateai">
     <file>ui.rc</file>
   </qresource>
+  <qresource prefix="/kateai/themes">
+    <file alias="default.theme">themes/default.theme</file>
+    <file alias="default.qss">themes/default.qss</file>
+    <file alias="default.html.css">themes/default.html.css</file>
+    <file alias="default.diff.css">themes/default.diff.css</file>
+    <file alias="kate-ayu-mirage.theme">themes/kate-ayu-mirage.theme</file>
+  </qresource>
 </RCC>

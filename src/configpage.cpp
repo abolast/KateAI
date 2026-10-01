@@ -6,11 +6,13 @@
 #include "configpage.h"
 #include "plugin.h"
 #include "settings.h"
+#include "theme.h"
 #include "llmclient.h"
 
 #include <KLocalizedString>
 
 #include <QComboBox>
+#include <QRegularExpression>
 #include <QCheckBox>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -26,6 +28,23 @@
 #include <algorithm>
 
 using namespace Qt::Literals::StringLiterals;
+
+namespace
+{
+
+/** "kate-ayu-mirage" -> "Kate Ayu Mirage" for the skin selector. */
+QString skinDisplayName(const QString &id)
+{
+    QStringList words = id.split(QRegularExpression(u"[-_]"_s), Qt::SkipEmptyParts);
+    for (QString &word : words) {
+        if (!word.isEmpty()) {
+            word[0] = word.at(0).toUpper();
+        }
+    }
+    return words.join(u' ');
+}
+
+} // namespace
 
 namespace KateAi
 {
@@ -411,6 +430,23 @@ KateAiConfigPage::KateAiConfigPage(QWidget *parent, KateAiPlugin *plugin)
     agentScroll->setWidget(agentWidget);
     tabs->addTab(agentScroll, i18n("Agent & Context"));
 
+    // ==========================================
+    // TAB 4: Appearance
+    // ==========================================
+    auto *appearanceWidget = new QWidget(tabs);
+    auto *appearanceForm = new QFormLayout(appearanceWidget);
+    appearanceForm->setContentsMargins(12, 12, 12, 12);
+    appearanceForm->setSpacing(8);
+
+    m_theme = new QComboBox(appearanceWidget);
+    const QStringList skinNames = Theme::availableNames();
+    for (const QString &skin : skinNames) {
+        m_theme->addItem(skinDisplayName(skin), skin);
+    }
+    appearanceForm->addRow(i18n("Chat skin:"), m_theme);
+
+    tabs->addTab(appearanceWidget, i18n("Appearance"));
+
     // Initialize model fetcher
     m_modelFetcher = new LlmClient(this);
     m_modelFetcher->setSettings(m_plugin->settings());
@@ -662,6 +698,9 @@ void KateAiConfigPage::apply()
     s.enablePlanUpdates = m_enablePlanUpdates->isChecked();
     s.narrativeProgress = m_narrativeProgress->isChecked();
 
+    // Appearance
+    s.themeName = m_theme->currentData().toString();
+
     // Context Management
     s.smartContextTruncation = m_smartContextTruncation->isChecked();
     s.contextWindowReserve = m_contextWindowReserve->value();
@@ -669,11 +708,19 @@ void KateAiConfigPage::apply()
     s.compressionThreshold = m_compressionThreshold->value();
 
     m_plugin->setSettings(s);
+
+    // Apply the skin right away so an open chat panel restyles without a
+    // restart; ChatWidget listens to Theme::themeChanged.
+    Theme::instance()->load(s.themeName);
 }
 
 void KateAiConfigPage::reset()
 {
     const Settings s = m_plugin->settings();
+    if (m_theme) {
+        const int themeIndex = m_theme->findData(s.themeName);
+        m_theme->setCurrentIndex(themeIndex >= 0 ? themeIndex : 0);
+    }
     m_provider->setCurrentIndex(std::max(0, m_provider->findData(providerId(s.provider))));
     m_grokKey->setText(s.grokApiKey);
     m_openaiKey->setText(s.openaiApiKey);

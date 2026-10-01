@@ -5,6 +5,8 @@
 
 #include "toolcallwidget.h"
 
+#include "theme.h"
+
 #include <KLocalizedString>
 
 #include <QFontMetrics>
@@ -17,6 +19,7 @@
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QSizePolicy>
+#include <QStyle>
 #include <QStringList>
 #include <QTextBrowser>
 #include <QTextDocument>
@@ -123,16 +126,13 @@ ToolCallWidget::ToolCallWidget(const QString &toolCallId, QWidget *parent)
     m_expandBtn->setFixedSize(20, 20);
     m_expandBtn->setFlat(true);
     m_expandBtn->setCursor(Qt::PointingHandCursor);
-    m_expandBtn->setStyleSheet(
-        u"QPushButton { color: #888; background: transparent; border: none; font-size: 11px; }"
-        u"QPushButton:hover { color: #ccc; }"_s);
+    m_expandBtn->setObjectName(u"toolExpandButton"_s);
     headerLayout->addWidget(m_expandBtn);
 
     root->addWidget(m_header);
 
-    // Proposed edit diff — always shown in a highlighted box so the edited
-    // code is visible in the chat transcript without needing to expand the
-    // tool card. Only populated for edit_file / write_file tools.
+    // Proposed edit diff, shown even when the card is collapsed.  Only
+    // populated for the file-edit tools.
     m_describeDiff = new QTextBrowser(this);
     m_describeDiff->setReadOnly(true);
     m_describeDiff->setOpenExternalLinks(false);
@@ -142,28 +142,7 @@ ToolCallWidget::ToolCallWidget(const QString &toolCallId, QWidget *parent)
     m_describeDiff->setWordWrapMode(QTextOption::WrapAnywhere);
     m_describeDiff->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_describeDiff->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_describeDiff->setStyleSheet(
-        u"QTextBrowser {"
-        u"  background-color: #11131a;"
-        u"  color: #d4d4d4;"
-        u"  border: 1px solid #2a3a22;"
-        u"  border-radius: 4px;"
-        u"  padding: 8px;"
-        u"  font-family: monospace;"
-        u"  font-size: 11px;"
-        u"  line-height: 1.4;"
-        u"}"
-        u"QMenu { background-color: #252528; color: #cccccc; border: 1px solid #3c3c40; border-radius: 6px; padding: 4px; }"
-        u"QMenu::item { padding: 6px 18px 6px 12px; border-radius: 4px; }"
-        u"QMenu::item:selected { background-color: #007acc; color: #ffffff; }"
-        u"QMenu::separator { height: 1px; background-color: #38383e; margin: 4px 0; }"_s);
-    m_describeDiff->document()->setDefaultStyleSheet(
-        u"body { color: #d4d4d4; font-family: monospace; font-size: 11px; margin: 0; padding: 0; }"
-        u".removed { color: #ef9999; background-color: #3a1a1a; }"
-        u".added { color: #9ed36a; background-color: #1a3a1a; }"
-        u".hunk { color: #888; }"
-        u"pre { margin: 0; white-space: pre-wrap; font-family: monospace; font-size: 11px; }"
-        u"p { margin: 0; white-space: pre-wrap; }"_s);
+    m_describeDiff->setObjectName(u"toolDiffPreview"_s);
     m_describeDiff->hide();
     root->addWidget(m_describeDiff);
 
@@ -182,20 +161,7 @@ ToolCallWidget::ToolCallWidget(const QString &toolCallId, QWidget *parent)
     m_details->setWordWrapMode(QTextOption::WrapAnywhere);
     m_details->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_details->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    m_details->setStyleSheet(
-        u"QPlainTextEdit {"
-        u"  background-color: #1a1a1a;"
-        u"  color: #aaa;"
-        u"  border: none;"
-        u"  border-radius: 4px;"
-        u"  padding: 8px;"
-        u"  font-family: monospace;"
-        u"  font-size: 11px;"
-        u"}"
-        u"QMenu { background-color: #252528; color: #cccccc; border: 1px solid #3c3c40; border-radius: 6px; padding: 4px; }"
-        u"QMenu::item { padding: 6px 18px 6px 12px; border-radius: 4px; }"
-        u"QMenu::item:selected { background-color: #007acc; color: #ffffff; }"
-        u"QMenu::separator { height: 1px; background-color: #38383e; margin: 4px 0; }"_s);
+    m_details->setObjectName(u"toolDetails"_s);
     detailsLayout->addWidget(m_details);
 
     root->addWidget(m_detailsContainer);
@@ -234,7 +200,7 @@ void ToolCallWidget::setRunning()
 {
     m_finished = false;
     m_status->setText(u"⟳"_s);
-    m_status->setStyleSheet(u"QLabel { color: #3b82f6; font-size: 14px; }"_s);
+    applyStatusStyle();
 }
 
 void ToolCallWidget::setDescribeDiff(const QString &diff)
@@ -323,17 +289,12 @@ void ToolCallWidget::setFinished(const ToolResult &result)
     m_finished = true;
     m_ok = result.ok;
 
-    if (result.ok) {
-        m_status->setText(u"✓"_s);
-        m_status->setStyleSheet(u"QLabel { color: #22c55e; font-size: 14px; }"_s);
-    } else {
-        m_status->setText(u"✗"_s);
-        m_status->setStyleSheet(u"QLabel { color: #ef4444; font-size: 14px; }"_s);
-    }
+    m_status->setText(result.ok ? u"✓"_s : u"✗"_s);
+    applyStatusStyle();
 
-    // Truncate very long outputs. File-edit cards keep the diff in the marine
-    // preview and put the tool result in details. Other tools put output only
-    // in the preview so expanding does not stack a duplicate copy.
+    // Truncate very long outputs.  File-edit cards keep the diff in the preview
+    // and put the result in details; other tools use the preview only, so
+    // expanding does not show a duplicate copy.
     const QString output = result.output.length() > 4000
         ? result.output.left(4000) + i18n("\n\n… (truncated)")
         : result.output;
@@ -421,8 +382,14 @@ void ToolCallWidget::toggleExpand()
 
 void ToolCallWidget::updateStyle()
 {
-    const QString borderColor = colorForRisk(m_risk);
-    const QString bgColor = m_finished ? (m_ok ? u"#1a1f1a"_s : u"#1f1a1a"_s) : u"#1a1a2e"_s;
+    // A widget with its own style sheet is resolved locally, so the panel
+    // colours never reach this card.  Every value is read from the active skin,
+    // which also makes a skin switch repaint the card.
+    const Theme *theme = Theme::instance();
+    const QString borderColor = theme->token(colorForRisk(m_risk));
+    const QString bgColor = theme->token(m_finished
+                                             ? (m_ok ? u"tool_bg_done_ok"_s : u"tool_bg_done_fail"_s)
+                                             : u"tool_bg_running"_s);
 
     setStyleSheet(
         u"ToolCallWidget {"
@@ -430,9 +397,64 @@ void ToolCallWidget::updateStyle()
         u"  border-left: 3px solid %2;"
         u"  border-radius: 6px;"
         u"  margin: 4px 0;"
-        u"}"_s.arg(bgColor, borderColor));
+        u"}"
+        u"QLabel { color: %3; }"
+        u"QPushButton#toolExpandButton { color: %4; background: transparent; border: none; font-size: 11px; }"
+        u"QPushButton#toolExpandButton:hover { color: %3; }"
+        u"QTextBrowser#toolDiffPreview {"
+        u"  background-color: %5;"
+        u"  color: %3;"
+        u"  border: 1px solid %6;"
+        u"  border-radius: 4px;"
+        u"  padding: 8px;"
+        u"  font-family: monospace;"
+        u"  font-size: 11px;"
+        u"  line-height: 1.4;"
+        u"}"
+        u"QPlainTextEdit#toolDetails {"
+        u"  background-color: %7;"
+        u"  color: %3;"
+        u"  border: none;"
+        u"  border-radius: 4px;"
+        u"  padding: 8px;"
+        u"  font-family: monospace;"
+        u"  font-size: 11px;"
+        u"}"
+        u"QMenu {"
+        u"  background-color: %8;"
+        u"  color: %3;"
+        u"  border: 1px solid %9;"
+        u"  border-radius: 6px;"
+        u"  padding: 4px;"
+        u"}"
+        u"QMenu::item { padding: 6px 18px 6px 12px; border-radius: 4px; }"
+        u"QMenu::item:selected { background-color: %10; color: %11; }"
+        u"QMenu::separator { height: 1px; background-color: %9; margin: 4px 0; }"_s
+            .arg(bgColor, borderColor)
+            .arg(theme->token(u"text_dim"_s))         // 3 label / body text
+            .arg(theme->token(u"text_faint"_s))       // 4 muted button text
+            .arg(theme->token(u"tool_code_bg"_s))     // 5 diff pane background
+            .arg(theme->token(u"tool_code_border"_s)) // 6 diff pane border
+            .arg(theme->token(u"tool_meta_bg"_s))     // 7 details background
+            .arg(theme->token(u"bg_menu"_s))          // 8 menu background
+            .arg(theme->token(u"border_soft"_s))      // 9 menu border / separator
+            .arg(theme->token(u"accent"_s))           // 10 menu selection
+            .arg(theme->token(u"accent_text"_s)));    // 11 menu selection text
 
-    m_title->setStyleSheet(u"QLabel { color: #ccc; font-size: 12px; }"_s);
+    m_title->setObjectName(u"toolCardTitle"_s);
+
+    // The read-only panes own a QTextDocument with its own sheet.
+    if (m_describeDiff) {
+        m_describeDiff->document()->setDefaultStyleSheet(theme->diffCss());
+    }
+    // A sheet swap needs a repolish to take effect.
+    const QList<QWidget *> children = findChildren<QWidget *>();
+    for (QWidget *child : children) {
+        child->style()->unpolish(child);
+        child->style()->polish(child);
+    }
+    style()->unpolish(this);
+    style()->polish(this);
 }
 
 QString ToolCallWidget::iconForTool(const QString &toolName) const
@@ -449,15 +471,25 @@ QString ToolCallWidget::iconForTool(const QString &toolName) const
 
 QString ToolCallWidget::colorForRisk(ToolRisk risk) const
 {
+    // Returns token names, not literals: risk colours come from the skin.
     switch (risk) {
     case ToolRisk::Read:
-        return u"#22c55e"_s;    // green
+        return u"success"_s;
     case ToolRisk::Write:
-        return u"#eab308"_s;    // yellow
+        return u"tool_risk_write"_s;
     case ToolRisk::Execute:
-        return u"#ef4444"_s;    // red
+        return u"danger"_s;
     }
-    return u"#888"_s;
+    return u"text_faint"_s;
+}
+
+void ToolCallWidget::applyStatusStyle()
+{
+    const Theme *theme = Theme::instance();
+    const QString colour = m_finished
+        ? theme->token(m_ok ? u"success"_s : u"danger"_s)
+        : theme->token(u"accent_line"_s);
+    m_status->setStyleSheet(u"QLabel { color: %1; font-size: 14px; }"_s.arg(colour));
 }
 
 bool ToolCallWidget::isDiffTool(const QString &toolName) const

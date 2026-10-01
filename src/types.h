@@ -114,6 +114,9 @@ struct ToolResult {
     bool ok = true;
 };
 
+// Name of the built-in chat skin used when nothing else is configured.
+inline constexpr const char *kDefaultThemeName = "default";
+
 struct Settings {
     Provider provider = Provider::Grok;
     QString grokApiKey;
@@ -154,6 +157,9 @@ struct Settings {
     bool thinkingMode = true;
     QString extraSystemPrompt;
     QStringList extraDenyGlobs;
+    // Chat panel skin (see src/themes). The built-in "default" skin is used
+    // unless another one is selected.
+    QString themeName = QStringLiteral("default"); // kDefaultThemeName
     int contextCompressionLevel = 1; // 0=full, 1=summary, 2=minimal, 3=ultra-minimal
     int maxGraphNodes = 50; // Maximum number of nodes to include in project graph
     int maxGraphEdges = 100; // Maximum number of edges to include in project graph

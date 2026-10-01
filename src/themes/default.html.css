@@ -1,0 +1,86 @@
+/*
+ * Kate AI chat skin — QTextDocument style sheet.
+ *
+ * Applied with QTextDocument::setDefaultStyleSheet() to every markdown view in
+ * the transcript.  Qt's rich text engine supports a restricted subset of
+ * HTML/CSS, so only those rules are used.
+ *
+ * Colours come from <name>.theme tokens; no literal colour values are allowed.
+ */
+
+body {
+    color: @text_assistant;
+    font-family: sans-serif;
+    font-size: 13px;
+    margin: 0;
+    padding: 0;
+}
+p {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+pre {
+    background-color: @bg_code;
+    color: @text_normal;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid @border_card;
+    font-family: monospace;
+    font-size: 12px;
+    margin: 8px 0;
+}
+code {
+    font-family: monospace;
+    font-size: 12px;
+    background-color: @bg_inline_code;
+    color: @text_normal;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+ul, ol {
+    margin-bottom: 8px;
+    padding-left: 20px;
+}
+li {
+    margin-bottom: 4px;
+}
+blockquote {
+    border-left: 3px solid @accent_line;
+    padding-left: 10px;
+    color: @text_faint;
+    margin: 8px 0;
+}
+a {
+    color: @accent_line;
+    text-decoration: none;
+}
+h1, h2, h3, h4, h5, h6 {
+    color: @text_strong;
+    margin: 10px 0 6px 0;
+}
+hr {
+    border: 1px solid @border_soft;
+}
+table {
+    border-collapse: collapse;
+    margin: 8px 0;
+}
+th, td {
+    border: 1px solid @border_card;
+    padding: 4px 8px;
+}
+
+/* Reasoning block: muted, italic variant. */
+body.reasoning {
+    color: @text_muted;
+    font-style: italic;
+    font-size: 12px;
+    background: transparent;
+}
+body.reasoning p {
+    color: @text_muted;
+    margin-bottom: 4px;
+}
+body.reasoning code {
+    color: @text_muted;
+}

@@ -1,0 +1,97 @@
+# Kate AI chat widget skin — built-in default (dark).
+#
+# A skin is plain text: "@key = value".  Values are resolved in dependency
+# order, so any value may reference another token ("@border_hover = @border").
+# Missing keys fall back to the semantic defaults defined in theme.cpp, which
+# means a custom skin only has to list the tokens it wants to change, e.g.
+#
+#   @accent      = #d97757
+#   @accent_text = #1a1a1a
+#   @danger      = #c0392b
+#
+# Copy this directory to ~/.local/share/kateai/themes/<name>/ and drop a
+# <name>.qss next to it to restyle the widgets themselves as well.
+
+# ---- surfaces ----------------------------------------------------------------
+@bg_base        = #181818    # transcript / chat background
+@bg_surface     = #1a1a1a    # composer container
+@bg_elevated    = #2e2e32    # raised buttons (model selector, tool buttons)
+@bg_raised      = #232326    # cards, bubbles, completion popup
+@bg_raised_alt  = #202024    # welcome suggestion chips
+@bg_hover       = #3a3a3e    # hover for raised buttons
+@bg_hover_alt   = #2a2a2e    # hover for cards / copy buttons
+@bg_hover_soft  = #2a2a30    # hover for suggestion chips
+@bg_sunken      = #1f1f22    # disabled reasoning-effort button
+@bg_input       = #1a1a1a    # menu filter input
+@bg_code        = #222225    # fenced code block background
+@bg_inline_code = #28282d    # inline code background
+@bg_menu        = #252528    # popup menu background
+
+# ---- text --------------------------------------------------------------------
+@text_strong    = #ffffff    # emphasis, hover labels
+@text_normal    = #e4e4e4    # message body/input text
+@text_assistant = #d4d4d4    # assistant markdown body
+@text_muted     = #c8c8c8    # reasoning body
+@text_dim       = #cccccc    # menu entries, chip labels, plan steps
+@text_soft      = #aaaaaa    # hovered faint text
+@text_faint     = #888888    # captions, section headers, "YOU"
+@text_subtle    = #777777    # status hints, welcome subtitle
+@text_placeholder = #666666  # disabled / empty state
+@text_disabled  = #555555    # disabled status line
+
+# ---- borders -----------------------------------------------------------------
+@border         = #3c3c40    # standard borders, scrollbar-less edges
+@border_soft    = #38383e    # separators, cards
+@border_card    = #333338    # cards and code blocks
+@border_strong  = #4a4a50    # hover border (raised buttons)
+@border_hover   = #4a4a52    # hover border (cards, copy buttons, scrollbar)
+
+# ---- accent ------------------------------------------------------------------
+@accent          = #007acc   # primary interactive blue
+@accent_hover    = #0099ff   # primary hover
+@accent_alt      = #2563eb   # jump-to-latest badge
+@accent_alt_hover = #1d4ed8
+@accent_deep     = #0062a3   # pressed / secondary hover
+@accent_ring     = #60a5fa   # focus ring on the accent badge
+@accent_line     = #3b82f6   # brand cyan: KATE AI label, thinking state
+@accent_line_hover = #33bbff
+@accent_text     = #ffffff
+
+# ---- semantic states ---------------------------------------------------------
+@success        = #22c55e    # ok tool status, "copied" confirmation
+@success_bg     = #1a3320
+@success_border = #2d9f42
+@success_hover  = #3ecf52
+@success_deep   = #1e7e34
+@success_deep_hover = #2d9f42
+@danger         = #e74c3c    # stop button, errors
+@danger_hover   = #ff6b5a
+@warn_fg        = #ff8888    # error info bar
+@warn_info      = #ffaa00    # retry info bar
+@thinking_fg    = #f59e0b    # working indicator
+@thinking_bg    = #3d2e0e
+@thinking_line  = #3b82f6    # thinking indicator fg/border
+
+# ---- scrollbars --------------------------------------------------------------
+@scroll_handle       = #333338
+@scroll_handle_hover = #4a4a52
+
+# ---- tool call cards ---------------------------------------------------------
+@tool_bg_running   = #1a1a2e
+@tool_bg_done_ok   = #1a1f1a
+@tool_bg_done_fail = #1f1a1a
+@tool_code_bg      = #11131a    # read-only output / diff pane
+@tool_code_border  = #2a3a22
+@tool_risk_write   = #eab308
+@tool_meta_bg      = #1a1a1a    # expanded details pane
+@tool_meta_border  = #3c3c3c
+@diff_add_fg       = #9ed36a
+@diff_add_bg       = #1a3a1a
+@diff_remove_fg    = #ef9999
+@diff_remove_bg    = #3a1a1a
+@diff_hunk_fg      = #888888
+
+# ---- welcome / banners -------------------------------------------------------
+@brand          = #3b82f6
+@banner_bg      = #1e3a5f    # transcript highlight banner
+@banner_border  = #3b82f6
